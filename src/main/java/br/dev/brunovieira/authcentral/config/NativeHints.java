@@ -1,5 +1,6 @@
 package br.dev.brunovieira.authcentral.config;
 
+import br.dev.brunovieira.authcentral.model.Tenant;
 import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.aot.hint.MemberCategory;
@@ -16,14 +17,20 @@ public class NativeHints {
 
         @Override
         public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
+            // Tenant cached in Redis — Jackson needs reflection to deserialize
+            hints.reflection().registerType(Tenant.class,
+                    MemberCategory.ACCESS_DECLARED_FIELDS,
+                    MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
+                    MemberCategory.INVOKE_DECLARED_METHODS);
+
             // Keycloak representations used via reflection by JAX-RS / Jackson
             hints.reflection().registerType(UserRepresentation.class,
-                    MemberCategory.DECLARED_FIELDS,
+                    MemberCategory.ACCESS_DECLARED_FIELDS,
                     MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
                     MemberCategory.INVOKE_DECLARED_METHODS);
 
             hints.reflection().registerType(CredentialRepresentation.class,
-                    MemberCategory.DECLARED_FIELDS,
+                    MemberCategory.ACCESS_DECLARED_FIELDS,
                     MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
                     MemberCategory.INVOKE_DECLARED_METHODS);
 
@@ -54,7 +61,7 @@ public class NativeHints {
                 try {
                     Class<?> clazz = Class.forName(className, false, classLoader);
                     hints.reflection().registerType(clazz,
-                            MemberCategory.DECLARED_FIELDS,
+                            MemberCategory.ACCESS_DECLARED_FIELDS,
                             MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
                             MemberCategory.INVOKE_DECLARED_METHODS);
                 } catch (ClassNotFoundException e) {
