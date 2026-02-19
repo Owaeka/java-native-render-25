@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  # Redis Cache
+  redis:
+    image: redis:8.2.3
+    container_name: native-render-25-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - auth-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    command: redis-server --appendonly yes --maxmemory 25mb --maxmemory-policy allkeys-lru
+
+  # Auth Central Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: native-render-25-app
+    ports:
+      - "8080:8080"
+    environment:
+      # Redis Configuration
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_SSL_ENABLED: false
+
+      # Keycloak Configuration
+      KEYCLOAK_URL: ${KEYCLOAK_URL}
+      KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
+      KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+
+      # Tenant Configuration
+      TENANT_1_KEY: ${TENANT_1_KEY:-}
+      TENANT_1_NAME: ${TENANT_1_NAME:-}
+      TENANT_1_REALM: ${TENANT_1_REALM:-}
+      TENANT_1_CLIENT_ID: ${TENANT_1_CLIENT_ID:-}
+      TENANT_1_CLIENT_SECRET: ${TENANT_1_CLIENT_SECRET:-}
+
+      # Application Settings
+      SERVER_PORT: 8080
+      LOG_LEVEL: INFO
+      RATE_LIMIT_ENABLED: true
+
+      # CORS Configuration
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:4200}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - auth-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  auth-network:
+    driver: bridge
+
+volumes:
+  redis_data:
+    driver: local
